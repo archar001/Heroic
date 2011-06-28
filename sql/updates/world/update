@@ -1,0 +1,40 @@
+DB_NAME=$1
+DB_USER=root
+DB_PASS=admin.2011
+FIRST_FILE=$2 # starts importing from this file
+STARTED=0
+
+if [ -z $DB_NAME ]
+then
+  echo "No database given."
+  exit
+fi
+
+# if FIRST_FILE is empty then start from beginning
+if [ -z $FIRST_FILE ]
+then
+  STARTED=1
+else
+  if [ ! -f $FIRST_FILE ]
+  then
+    echo "$FIRST_FILE doesn't exist."
+    exit
+  fi
+fi
+
+for file in *.sql
+do
+  if [ $STARTED -eq 0 ]
+  then
+    if [ $file = $FIRST_FILE ]
+    then
+      STARTED=1
+    fi
+  fi
+
+  if [ $STARTED -eq 1 ]
+  then
+    echo $file
+    mysql -u $DB_USER -p$DB_PASS $DB_NAME < $file
+  fi
+done
