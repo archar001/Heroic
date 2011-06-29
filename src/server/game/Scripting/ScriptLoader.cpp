@@ -596,7 +596,7 @@ void AddSC_wintergrasp();
 void AddSC_chat_log();
 
 // custom
-void AddSC_custom_levelgold();
+
 #endif
 
 void AddScripts()
@@ -1233,6 +1233,6 @@ void AddCustomScripts()
 {
 #ifdef SCRIPTS
     /* This is where custom scripts should be added. */
-AddSC_custom_levelgold();
+
 #endif
 }
