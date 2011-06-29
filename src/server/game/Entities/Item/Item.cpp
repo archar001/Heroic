@@ -262,8 +262,14 @@ bool Item::Create(uint32 guidlow, uint32 itemid, Player const* owner)
 
     SetUInt64Value(ITEM_FIELD_OWNER, owner ? owner->GetGUID() : 0);
     SetUInt64Value(ITEM_FIELD_CONTAINED, owner ? owner->GetGUID() : 0);
-
-    ItemTemplate const *itemProto = sObjectMgr->GetItemTemplate(itemid);
+	ItemTemplate const *itemProto = sObjectMgr->GetItemTemplate(itemid);
+    if (itemProto->Quality > 2 && itemProto->Flags != 2048 && (itemProto->Class == ITEM_CLASS_WEAPON || itemProto->Class == ITEM_CLASS_ARMOR))
+    {
+        if (!GetOwner())
+            return true;
+        GetOwner()->CreateWowarmoryFeed(2, itemid, guidlow, itemProto->Quality);
+    }
+    
     if (!itemProto)
         return false;
 
