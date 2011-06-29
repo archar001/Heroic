@@ -1,179 +1,158 @@
-/*
- * Copyright (C) 2008-2011 TrinityCore <http://www.trinitycore.org/>
+/* Copyright (C) 2010 Easy for Trinity <http://trinity-core.ru/> 
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * Copyright (C) 2008 - 2010 Trinity <http://www.trinitycore.org/>
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
+ * Copyright (C) 2010 Myth Project <http://bitbucket.org/sun/myth-core/>
  *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2006 - 2010 ScriptDev2 <https://scriptdev2.svn.sourceforge.net/>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include "ScriptPCH.h"
 #include "ruby_sanctum.h"
 
-
-DoorData const doorData[] =
+static const DoorData doorData[5] =
 {
-    {GO_FIRE_FIELD,     DATA_BALTHARUS_THE_WARBORN, DOOR_TYPE_PASSAGE,  BOUNDARY_E   },
-    {0,                 0,                          DOOR_TYPE_ROOM,     BOUNDARY_NONE},
+    {GO_FIRE_FIELD,   DATA_BALTHARUS,       DOOR_TYPE_PASSAGE, BOUNDARY_NONE},
+    {GO_FLAME_WALLS,  DATA_BALTHARUS,       DOOR_TYPE_PASSAGE, BOUNDARY_NONE},
+    {GO_FLAME_WALLS,  DATA_RAGEFIRE,        DOOR_TYPE_PASSAGE, BOUNDARY_NONE},
+    {GO_FLAME_WALLS,  DATA_ZARITHRIAN,      DOOR_TYPE_ROOM,    BOUNDARY_N   },
+    {0,               0,                    DOOR_TYPE_ROOM,    BOUNDARY_NONE}
 };
 
 class instance_ruby_sanctum : public InstanceMapScript
 {
     public:
-        instance_ruby_sanctum() : InstanceMapScript(RSScriptName, 724) { }
+        instance_ruby_sanctum() : InstanceMapScript("instance_ruby_sanctum", 724) { }
 
         struct instance_ruby_sanctum_InstanceMapScript : public InstanceScript
         {
-            instance_ruby_sanctum_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
+            instance_ruby_sanctum_InstanceMapScript(Map *pMap) : InstanceScript(pMap)
             {
-                SetBossNumber(EncounterCount);
+                SetBossNumber(MAX_ENCOUNTER);
                 LoadDoorData(doorData);
-                BaltharusTheWarbornGUID = 0;
-                GeneralZarithrianGUID   = 0;
-                SavianaRagefireGUID     = 0;
-                HalionGUID              = 0;
-                HalionControllerGUID    = 0;
-                CrystalChannelTargetGUID = 0;
-                XerestraszaGUID         = 0;
-                BaltharusSharedHealth   = 0;
-                FlameWallsGUID          = 0;
-                FlameRingGUID           = 0;
-                memset(ZarithianSpawnStalkerGUID, 0, 2*sizeof(uint64));
-                memset(BurningTreeGUID, 0, 4*sizeof(uint64));
+
+                m_uiDataDamage = 0;
+
+                m_uiXerestrasza = 0;
+                m_uiTwilightHalion = 0;
+
+                m_uiHalionPortalGUID = 0;
+                m_uiTwilightPortalGUID = 0;
+                m_uiBaltharusGUID = 0;
+                m_uiZarithrianGUID = 0;
+                m_uiRagefireGUID = 0;
+                m_uiHalionGUID = 0;
+                m_uiXerestraszaGUID = 0;
+                m_uiTwilightHalionGUID = 0;
+                m_uiGOFlameWallsGUID = 0;
+                m_uiGOTwilightWallsGUID = 0;
             }
 
-            void OnCreatureCreate(Creature* creature)
+            void OnCreatureCreate(Creature *pCreature)
             {
-                switch (creature->GetEntry())
+                switch(pCreature->GetEntry())
                 {
-                    case NPC_BALTHARUS_THE_WARBORN:
-                        BaltharusTheWarbornGUID = creature->GetGUID();
-                        break;
-                    case NPC_GENERAL_ZARITHRIAN:
-                        GeneralZarithrianGUID = creature->GetGUID();
-                        break;
-                    case NPC_SAVIANA_RAGEFIRE:
-                        SavianaRagefireGUID = creature->GetGUID();
-                        break;
-                    case NPC_HALION:
-                        HalionGUID = creature->GetGUID();
-                        break;
-                    case NPC_HALION_CONTROLLER:
-                        HalionControllerGUID = creature->GetGUID();
-                    case NPC_BALTHARUS_TARGET:
-                        CrystalChannelTargetGUID = creature->GetGUID();
-                        break;
-                    case NPC_XERESTRASZA:
-                        XerestraszaGUID = creature->GetGUID();
-                        break;
-                    case NPC_ZARITHIAN_SPAWN_STALKER:
-                        if (!ZarithianSpawnStalkerGUID[0])
-                            ZarithianSpawnStalkerGUID[0] = creature->GetGUID();
+                    case NPC_BALTHARUS: {    m_uiBaltharusGUID = pCreature->GetGUID();   break;}
+                    case NPC_RAGEFIRE:  {    m_uiRagefireGUID = pCreature->GetGUID();    break;}
+                    case NPC_XERESTRASZA: {  m_uiXerestraszaGUID = pCreature->GetGUID(); break;}
+                    case NPC_ZARITHRIAN:
+                    {
+                        m_uiZarithrianGUID = pCreature->GetGUID();
+                        if (GetBossState(DATA_RAGEFIRE)==DONE && GetBossState(DATA_BALTHARUS)==DONE)
+                        {
+                            pCreature->SetReactState(REACT_AGGRESSIVE);
+                            pCreature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                        }
                         else
-                            ZarithianSpawnStalkerGUID[1] = creature->GetGUID();
+                        {
+                            pCreature->SetReactState(REACT_PASSIVE);
+                            pCreature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                        }
                         break;
+                    }
+                    case NPC_HALION:
+                    {
+                        m_uiHalionGUID = pCreature->GetGUID();
+                        if (GetBossState(DATA_ZARITHRIAN)==DONE)
+                        {
+                            pCreature->SetVisible(true);
+                            pCreature->SetReactState(REACT_AGGRESSIVE);
+                            pCreature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                            pCreature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_OOC_NOT_ATTACKABLE); 
+                        }
+                        else
+                        {
+                            pCreature->SetVisible(false);
+                            pCreature->SetReactState(REACT_PASSIVE);
+                            pCreature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                        }
+                        break;
+                    }
+                    case NPC_TWILIGHT_HALION:{ m_uiTwilightHalionGUID = pCreature->GetGUID(); break;}
                     default:
                         break;
                 }
             }
 
-            void OnGameObjectCreate(GameObject* go)
+            void OnGameObjectCreate(GameObject* pGo, bool add)
             {
-                switch (go->GetEntry())
+                switch (pGo->GetEntry())
                 {
                     case GO_FIRE_FIELD:
-                        AddDoor(go, true);
-                        break;
                     case GO_FLAME_WALLS:
-                        FlameWallsGUID = go->GetGUID();
-                        if (GetBossState(DATA_SAVIANA_RAGEFIRE) == DONE && GetBossState(DATA_BALTHARUS_THE_WARBORN) == DONE)
-                            HandleGameObject(FlameWallsGUID, true, go);
+                    //case GO_FLAME_WALLS2:
+                        AddDoor(pGo, add);
                         break;
-                    case GO_FLAME_RING:
-                        FlameRingGUID = go->GetGUID();
-                        break;
-                    case GO_BURNING_TREE_1:
-                        BurningTreeGUID[0] = go->GetGUID();
-                        if (GetBossState(DATA_GENERAL_ZARITHRIAN) == DONE)
-                            HandleGameObject(BurningTreeGUID[0], true);
-                        break;
-                    case GO_BURNING_TREE_2:
-                        BurningTreeGUID[1] = go->GetGUID();
-                        if (GetBossState(DATA_GENERAL_ZARITHRIAN) == DONE)
-                            HandleGameObject(BurningTreeGUID[1], true);
-                        break;
-                    case GO_BURNING_TREE_3:
-                        BurningTreeGUID[2] = go->GetGUID();
-                        if (GetBossState(DATA_GENERAL_ZARITHRIAN) == DONE)
-                            HandleGameObject(BurningTreeGUID[2], true);
-                        break;
-                    case GO_BURNING_TREE_4:
-                        BurningTreeGUID[3] = go->GetGUID();
-                        if (GetBossState(DATA_GENERAL_ZARITHRIAN) == DONE)
-                            HandleGameObject(BurningTreeGUID[3], true);
-                        break;
-                    default:
-                        break;
+                    case GO_TWILIGHT_PORTAL1: m_uiHalionPortalGUID = pGo->GetGUID(); break;
+                    case GO_TWILIGHT_PORTAL2: m_uiTwilightPortalGUID = pGo->GetGUID(); break;
+                    case GO_FLAME_WALLS2:     m_uiGOFlameWallsGUID = pGo->GetGUID(); break;
+                    case GO_FLAME_WALLS3:     m_uiGOTwilightWallsGUID = pGo->GetGUID(); break;
+                    default: break;
                 }
             }
 
-            void OnGameObjectRemove(GameObject* go)
+            void SetData(uint32 uiType, uint32 uiData)
             {
-                switch (go->GetEntry())
+                switch(uiType)
                 {
-                    case GO_FIRE_FIELD:
-                        AddDoor(go, false);
-                        break;
-                    default:
-                        break;
+                    case DATA_XERESTRASZA:     m_uiXerestrasza    = uiData; break;
+                    case DATA_TWILIGHT_HALION: m_uiTwilightHalion = uiData; break;
+                    case DATA_DAMAGE:          m_uiDataDamage     = uiData; break;   
                 }
             }
 
-            uint64 GetData64(uint32 type)
+            uint32 GetData(uint32 uiType)
             {
-                switch (type)
+                switch(uiType)
                 {
-                    case DATA_BALTHARUS_THE_WARBORN:
-                        return BaltharusTheWarbornGUID;
-                    case DATA_CRYSTAL_CHANNEL_TARGET:
-                        return CrystalChannelTargetGUID;
-                    case DATA_XERESTRASZA:
-                        return XerestraszaGUID;
-                    case DATA_SAVIANA_RAGEFIRE:
-                        return SavianaRagefireGUID;
-                    case DATA_GENERAL_ZARITHRIAN:
-                        return GeneralZarithrianGUID;
-                    case DATA_ZARITHIAN_SPAWN_STALKER_1:
-                        return ZarithianSpawnStalkerGUID[0];
-                    case DATA_ZARITHIAN_SPAWN_STALKER_2:
-                        return ZarithianSpawnStalkerGUID[1];
-                    case DATA_HALION:
-                        return HalionGUID;
-                    case DATA_HALION_CONTROLLER:
-                        return HalionControllerGUID;
-                    case DATA_BURNING_TREE_1:
-                        return BurningTreeGUID[0];
-                    case DATA_BURNING_TREE_2:
-                        return BurningTreeGUID[1];
-                    case DATA_BURNING_TREE_3:
-                        return BurningTreeGUID[2];
-                    case DATA_BURNING_TREE_4:
-                        return BurningTreeGUID[3];
-                    case DATA_FLAME_RING:
-                        return FlameRingGUID;
-                    default:
-                        break;
+                    case DATA_XERESTRASZA:     return m_uiXerestrasza;    break;
+                    case DATA_TWILIGHT_HALION: return m_uiTwilightHalion; break;
+                    case DATA_DAMAGE:          return m_uiDataDamage;     break;
                 }
-
                 return 0;
+            }
+
+            void BossZarithrian()
+            {
+                if (Creature* Zarithrian = instance->GetCreature(GetData64(DATA_ZARITHRIAN)))
+                {
+                    Zarithrian->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                    Zarithrian->SetReactState(REACT_AGGRESSIVE);
+                }
             }
 
             bool SetBossState(uint32 type, EncounterState state)
@@ -183,33 +162,69 @@ class instance_ruby_sanctum : public InstanceMapScript
 
                 switch (type)
                 {
-                    case DATA_BALTHARUS_THE_WARBORN:
+                    case DATA_BALTHARUS:
                     {
-                        if (state == DONE && GetBossState(DATA_SAVIANA_RAGEFIRE) == DONE)
+                        if (state==DONE)
                         {
-                            HandleGameObject(FlameWallsGUID, true);
-                            if (Creature* zarithrian = instance->GetCreature(GeneralZarithrianGUID))
-                                zarithrian->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_OOC_NOT_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
+                            if (GetBossState(DATA_RAGEFIRE)==DONE)
+                            {
+                                BossZarithrian();
+                            }
                         }
                         break;
                     }
-                    case DATA_SAVIANA_RAGEFIRE:
+                    case DATA_RAGEFIRE: 
                     {
-                        if (state == DONE && GetBossState(DATA_BALTHARUS_THE_WARBORN) == DONE)
+                        if (state==DONE)
                         {
-                            HandleGameObject(FlameWallsGUID, true);
-                            if (Creature* zarithrian = instance->GetCreature(GeneralZarithrianGUID))
-                                zarithrian->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_OOC_NOT_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
+                            if (GetBossState(DATA_BALTHARUS)==DONE)
+                            {
+                                BossZarithrian();
+                            }
                         }
                         break;
                     }
-                    case DATA_GENERAL_ZARITHRIAN:
-                        if (GetBossState(DATA_SAVIANA_RAGEFIRE) == DONE && GetBossState(DATA_BALTHARUS_THE_WARBORN) == DONE)
-                            HandleGameObject(FlameWallsGUID, state != IN_PROGRESS);
-                        if (state == DONE)
-                            if (Creature* halionController = instance->SummonCreature(NPC_HALION_CONTROLLER, HalionControllerSpawnPos))
-                                halionController->AI()->DoAction(ACTION_INTRO_HALION);
+                    case DATA_ZARITHRIAN:
+                    {
+                        if (GetBossState(DATA_BALTHARUS)==DONE && GetBossState(DATA_RAGEFIRE)==DONE)
+                        {
+                            if (state==DONE)
+                            {
+                                if (Creature* halion = instance->GetCreature(GetData64(DATA_HALION)))
+                                {
+                                    halion->SummonCreature(NPC_SUMMON_HALIOH,SpawnPosHalion,TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT,20000);
+                                    halion->SetVisible(true);
+                                    halion->SetReactState(REACT_AGGRESSIVE);
+                                    halion->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                                    halion->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_OOC_NOT_ATTACKABLE);
+                                }
+                            }
+                        }
                         break;
+                    }
+                    case DATA_HALION:
+                    {
+                        if (state==DONE)
+                        {
+                            if (GameObject* flame2 = instance->GetGameObject(GetData64(GO_FLAME_WALLS2)))
+                                flame2->RemoveFromWorld();
+
+                            if (GameObject* flame3 = instance->GetGameObject(GetData64(GO_FLAME_WALLS3)))
+                                flame3->RemoveFromWorld();
+                        }
+
+                        if (GetBossState(DATA_ZARITHRIAN)==DONE)
+                        {
+                            if (Creature* halion = instance->GetCreature(GetData64(DATA_HALION)))
+                            {
+                                halion->SetVisible(true);
+                                halion->SetReactState(REACT_AGGRESSIVE);
+                                halion->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                                halion->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_OOC_NOT_ATTACKABLE);
+                            }
+                         }
+                         break;
+                    }
                     default:
                         break;
                 }
@@ -217,93 +232,77 @@ class instance_ruby_sanctum : public InstanceMapScript
                 return true;
             }
 
-            void SetData(uint32 type, uint32 data)
+            uint64 GetData64(uint32 uiData)
             {
-                switch (type)
+                switch(uiData)
                 {
-                    case DATA_BALTHARUS_SHARED_HEALTH:
-                        BaltharusSharedHealth = data;
-                        break;
+                    case DATA_BALTHARUS:       return m_uiBaltharusGUID;      break;
+                    case DATA_ZARITHRIAN:      return m_uiZarithrianGUID;     break;
+                    case DATA_RAGEFIRE:        return m_uiRagefireGUID;       break;
+                    case DATA_HALION:          return m_uiHalionGUID;         break;
+                    case DATA_TWILIGHT_HALION: return m_uiTwilightHalionGUID; break;
+                    case DATA_XERESTRASZA:     return m_uiXerestraszaGUID;    break;
+                    case GO_TWILIGHT_PORTAL1:  return m_uiHalionPortalGUID;   break;
+                    case GO_TWILIGHT_PORTAL2:  return m_uiTwilightPortalGUID; break;
+                    case GO_FLAME_WALLS2:      return m_uiGOFlameWallsGUID;   break; 
+                    case GO_FLAME_WALLS3:      return m_uiGOTwilightWallsGUID;   break; 
+                    default: break;
                 }
-            }
-
-            uint32 GetData(uint32 type)
-            {
-                switch (type)
-                {
-                    case DATA_BALTHARUS_SHARED_HEALTH:
-                        return BaltharusSharedHealth;
-                    default:
-                        break;
-                }
-
                 return 0;
             }
 
             std::string GetSaveData()
             {
-                OUT_SAVE_INST_DATA;
-
                 std::ostringstream saveStream;
-                saveStream << "R S " << GetBossSaveData();
-
-                OUT_SAVE_INST_DATA_COMPLETE;
+                saveStream << GetBossSaveData() << " " << m_uiXerestrasza;
                 return saveStream.str();
             }
 
-            void Load(char const* str)
+            void Load(const char* strIn)
             {
-                if (!str)
+                if (!strIn)
                 {
-                    OUT_LOAD_INST_DATA_FAIL;
                     return;
                 }
 
-                OUT_LOAD_INST_DATA(str);
+                std::istringstream loadStream(strIn);
 
-                char dataHead1, dataHead2;
-
-                std::istringstream loadStream(str);
-                loadStream >> dataHead1 >> dataHead2;
-
-                if (dataHead1 == 'R' && dataHead2 == 'S')
+                uint32 tmpState;
+                
+                for (uint8 i = 0; i < MAX_ENCOUNTER; ++i)
                 {
-                    for (uint8 i = 0; i < EncounterCount; ++i)
-                    {
-                        uint32 tmpState;
-                        loadStream >> tmpState;
-                        if (tmpState == IN_PROGRESS || tmpState > SPECIAL)
-                            tmpState = NOT_STARTED;
-
-                        SetBossState(i, EncounterState(tmpState));
-                    }
+                    loadStream >> tmpState;
+                    if (tmpState == IN_PROGRESS || tmpState > SPECIAL)
+                        tmpState = NOT_STARTED;
+                    SetBossState(i, EncounterState(tmpState));
                 }
-                else
-                    OUT_LOAD_INST_DATA_FAIL;
 
-                OUT_LOAD_INST_DATA_COMPLETE;
+                loadStream >> m_uiXerestrasza;
             }
 
-        protected:
-            uint64 BaltharusTheWarbornGUID;
-            uint64 GeneralZarithrianGUID;
-            uint64 SavianaRagefireGUID;
-            uint64 HalionGUID;
-            uint64 HalionControllerGUID;
-            uint64 CrystalChannelTargetGUID;
-            uint64 XerestraszaGUID;
-            uint64 FlameWallsGUID;
-            uint64 ZarithianSpawnStalkerGUID[2];
-            uint64 BurningTreeGUID[4];
-            uint64 FlameRingGUID;
-            uint32 BaltharusSharedHealth;
-        };
+            private:
+                uint32 m_uiXerestrasza;
+                uint32 m_uiTwilightHalion;
+                uint32 m_uiDataDamage;
 
-        InstanceScript* GetInstanceScript(InstanceMap* map) const
+                uint64 m_uiBaltharusGUID;
+                uint64 m_uiZarithrianGUID;
+                uint64 m_uiRagefireGUID;
+                uint64 m_uiHalionGUID;
+                uint64 m_uiXerestraszaGUID;
+                uint64 m_uiTwilightHalionGUID;
+                uint64 m_uiHalionPortalGUID;
+                uint64 m_uiTwilightPortalGUID;
+                uint64 m_uiGOFlameWallsGUID;
+                uint64 m_uiGOTwilightWallsGUID;
+        };
+        
+        InstanceScript* GetInstanceScript (InstanceMap *pMap) const
         {
-            return new instance_ruby_sanctum_InstanceMapScript(map);
+            return new instance_ruby_sanctum_InstanceMapScript(pMap);
         }
 };
+
 
 void AddSC_instance_ruby_sanctum()
 {
