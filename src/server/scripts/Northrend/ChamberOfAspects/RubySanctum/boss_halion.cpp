@@ -143,6 +143,8 @@ class boss_halion : public CreatureScript
                     pHalion = me;
                 }
 
+		uint32 m_uiBeserkTimer;
+
             void Reset()
             {
                 if (instance->GetData(DATA_TWILIGHT_HALION)==IN_PROGRESS || instance->GetBossState(DATA_HALION)==IN_PROGRESS)
@@ -161,6 +163,7 @@ class boss_halion : public CreatureScript
                 PercentDamage = 0;
                 HalionDamage = 0;
                 HalionAura = 0;
+		m_uiBeserkTimer = 480000;
                 RemoveAllGO();
             }
 
@@ -366,6 +369,18 @@ class boss_halion : public CreatureScript
 
                 if (me->HasUnitState(UNIT_STAT_CASTING))
                     return;
+
+		 if (m_uiBeserkTimer <= diff)
+                    {
+                       
+                        DoScriptText(SAY_BERSERK, me, me->getVictim());
+                        DoCast(me, SPELL_BERSEK);
+
+                       
+                        m_uiBeserkTimer = 480000;
+                    }
+		 else
+                      m_uiBeserkTimer -= diff;
 
                 events.Update(diff);
 
